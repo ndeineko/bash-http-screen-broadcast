@@ -16,7 +16,8 @@ Create a small HTTP server to broadcast screen and sound from a linux computer i
 
 ## Usage
 
-* Execute `./screencapture.sh` (add `-v` to show ffmpeg's verbose output)
+* Start `./screencapture.sh` (add `-v` to show ffmpeg's verbose output)
 * (optional) Open `pavucontrol`, go to "Recording" tab, find ffmpeg and set audio capture to "Monitor of ..."
 * Find computer IP.
 * (client) Open `http://IP:PORT/` in a browser
+* To stop `screencapture.sh`, press `CTRL+C` in the terminal window or send a SIGINT to the process
