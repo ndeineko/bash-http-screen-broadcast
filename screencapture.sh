@@ -56,9 +56,9 @@ else
 	exit 1
 fi
 
-trap "rm --recursive --force \"$tempdir\"" INT EXIT
-
 tempdir=$(mktemp --directory --suffix=ffmpeg-screen-capture)
+
+trap "rm --recursive --force \"$tempdir\"" INT EXIT
 
 cd "$tempdir"
 
