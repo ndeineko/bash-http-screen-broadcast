@@ -15,7 +15,7 @@ CAPTURESIZE="1366x768" # Capture size WxH
 
 SOUNDSERVER="alsa"
 AUDIODEVICE="default"
-AUDIODELAY="0.17" # in seconds
+AUDIODELAY="0.16" # in seconds
 
 VIDEOSCALE="0.5" # Output image scale factor
 
@@ -28,7 +28,7 @@ MAXSEGMENTS="4" # Maximum number of old files kept for each stream (audio or vid
 ### End of settings
 
 startCapture(){
-	echo "\"use strict\";var mimeCodec=[\"video/mp4; codecs=\\\"avc1.42c01f\\\"\",\"audio/mp4; codecs=\\\"mp4a.40.2\\\"\"],segmentDuration=2;" > metadata.js
+	echo -n "\"use strict\";var mimeCodec=[\"video/mp4; codecs=\\\"avc1.42c01f\\\"\",\"audio/mp4; codecs=\\\"mp4a.40.2\\\"\"],segmentDuration=2;" > metadata.js
 
 	mkdir 0 1
 
@@ -313,22 +313,16 @@ cat >server.sh <<-"EOFF"
 	}
 
 	waitFileNotEmpty(){
-		while true
+		while [ "$(stat --printf="%s" "$1" 2>/dev/null)" == "0" ]
 		do
-			size=$(stat --printf="%s" "$1" 2>/dev/null)
-			if [ "$size" == 0 ]
-			then
-				sleepABit
-			else
-				return
-			fi
+			sleepABit
 		done
 	}
 
 	printSegmentResponse(){
 		segmentId=$(echo -n "$1"|cut -d "/" -f 2)
 		
-		if [ "$segmentId" == 0 ]
+		if [ "$segmentId" == "0" ]
 		then
 			waitFileExistence "$1"
 			waitFileNotEmpty "$1"
@@ -345,7 +339,7 @@ cat >server.sh <<-"EOFF"
 			fi
 		fi
 		
-		size=$(stat --printf="%s" "$1") 2>/dev/null
+		size=$(stat --printf="%s" "$1" 2>/dev/null)
 
 		if [ "$?" == "0" ]
 		then
