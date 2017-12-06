@@ -21,17 +21,18 @@ Create a small HTTP server to broadcast screen and sound from Linux in bash.
 
 If an option is not provided, a default value will be used.
 ```
-    --port port                  Valid source port number for HTTP server
-    --displayname name           Display name in the form hostname:displaynumber.screennumber
-    --captureorigin position     Capture origin in the form X,Y (e.g. 208,254)
-    --capturesize dimensions     Capture size in the form WxH (e.g. 640x480)
-    --soundserver name           Sound server to use ("alsa", "pulse", "oss", ...)
-    --audiodevice device         Audio input device
-    --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
-    --videoscale scale           Output image scale factor (e.g. 0.75)
-    --targetbitrate size         Output video target bitrate (e.g. 3M)
-    --maxbitrate size            Output video maximum bitrate (e.g. 4M)
-    --buffersize size            Video bitrate controler buffer size (e.g. 8M)
-    --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
+-p, --port port                  Valid source port number for HTTP server
+-n, --displayname name           Display name in the form hostname:displaynumber.screennumber
+-o, --captureorigin position     Capture origin in the form X,Y (e.g. 208,254)
+-c, --capturesize dimensions     Capture size in the form WxH (e.g. 640x480)
+-s, --soundserver name           Sound server to use ("alsa", "pulse", "oss", ...)
+-a, --audiodevice device         Audio input device
+-d, --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
+-e, --videoscale scale           Output image scale factor (e.g. 0.75)
+-b, --targetbitrate size         Output video target bitrate (e.g. 3M)
+-m, --maxbitrate size            Output video maximum bitrate (e.g. 4M)
+-B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
+-M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
 -v, --verbose                    Show ffmpeg's verbose output
+-?, --help                       Print this help
 ```
