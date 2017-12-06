@@ -84,7 +84,7 @@ do
 			LOGLEVEL="verbose"
 			args=0
 			;;
-		-h|-?|--help)
+		-h|-\?|--help)
 			cat <<-"EOF"
 			Capture screen and audio with ffmpeg and share it via a very primitive HTTP server.
 			Usage: screencapture.sh [OPTIONS]
