@@ -2,20 +2,7 @@
 #
 # USAGE: screencapture.sh [OPTIONS]
 # DESCRIPTION: Capture screen and audio with ffmpeg and share it via a very primitive HTTP server.
-# OPTIONS:
-#               --port port                  Valid source port number for HTTP server
-#               --displayname name           Display name in the form hostname:displaynumber.screennumber
-#               --captureorigin position     Capture origin in the form X,Y (e.g. 208,254)
-#               --capturesize dimensions     Capture size in the form WxH (e.g. 640x480)
-#               --soundserver name           Sound server to use ("alsa", "pulse", "oss", ...)
-#               --audiodevice device         Audio input device
-#               --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
-#               --videoscale scale           Output image scale factor (e.g. 0.75)
-#               --targetbitrate size         Output video target bitrate (e.g. 3M)
-#               --maxbitrate size            Output video maximum bitrate (e.g. 4M)
-#               --buffersize size            Video bitrate controler buffer size (e.g. 8M)
-#               --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
-#           -v, --verbose                    Show ffmpeg's verbose output
+# OPTIONS: See 'screencapture.sh --help'
 #
 
 # Default settings
@@ -45,51 +32,51 @@ LOGLEVEL="quiet"
 while [ -n "$1" -a "$1" != "--" ]
 do
 	case "$1" in
-		--port)
+		-p|--port)
 			PORT="$2"
 			args=1
 			;;
-		--displayname)
+		-n|--displayname)
 			DISPLAYNAME="$2"
 			args=1
 			;;
-		--captureorigin)
+		-o|--captureorigin)
 			CAPTUREORIGIN="$2"
 			args=1
 			;;
-		--capturesize)
+		-c|--capturesize)
 			CAPTURESIZE="$2"
 			args=1
 			;;
-		--soundserver)
+		-s|--soundserver)
 			SOUNDSERVER="$2"
 			args=1
 			;;
-		--audiodevice)
+		-a|--audiodevice)
 			AUDIODEVICE="$2"
 			args=1
 			;;
-		--audiodelay)
+		-d|--audiodelay)
 			AUDIODELAY="$2"
 			args=1
 			;;
-		--videoscale)
+		-e|--videoscale)
 			VIDEOSCALE="$2"
 			args=1
 			;;
-		--targetbitrate)
+		-b|--targetbitrate)
 			TARGETBITRATE="$2"
 			args=1
 			;;
-		--maxbitrate)
+		-m|--maxbitrate)
 			MAXBITRATE="$2"
 			args=1
 			;;
-		--buffersize)
+		-B|--buffersize)
 			BUFFERSIZE="$2"
 			args=1
 			;;
-		--maxsegments)
+		-M|--maxsegments)
 			MAXSEGMENTS="$2"
 			args=1
 			;;
@@ -97,9 +84,32 @@ do
 			LOGLEVEL="verbose"
 			args=0
 			;;
+		-h|-?|--help)
+			cat <<-"EOF"
+			Capture screen and audio with ffmpeg and share it via a very primitive HTTP server.
+			Usage: screencapture.sh [OPTIONS]
+			Options:
+			  -p, --port port                  Valid source port number for HTTP server
+			  -n, --displayname name           Display name in the form hostname:displaynumber.screennumber
+			  -o, --captureorigin position     Capture origin in the form X,Y (e.g. 208,254)
+			  -c, --capturesize dimensions     Capture size in the form WxH (e.g. 640x480)
+			  -s, --soundserver name           Sound server to use ("alsa", "pulse", "oss", ...)
+			  -a, --audiodevice device         Audio input device
+			  -d, --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
+			  -e, --videoscale scale           Output image scale factor (e.g. 0.75)
+			  -b, --targetbitrate size         Output video target bitrate (e.g. 3M)
+			  -m, --maxbitrate size            Output video maximum bitrate (e.g. 4M)
+			  -B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
+			  -M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
+			  -v, --verbose                    Show ffmpeg's verbose output
+			  -?, --help                       Print this help
+			EOF
+			exit 0
+			;;
 		*)
 			echo "Invalid option:  $1" >&2
 			exit 1
+			;;
 	esac
 
 	if ! shift "$((1+$args))"
@@ -148,347 +158,347 @@ startCapture(){
 
 startServer(){
 	cat >server.sh <<-"EOFF"
-		#!/bin/bash
+	#!/bin/bash
 
-		read -r -d "" HTML <<-"EOF"
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="UTF-8">
-			<title>Screen</title>
-			<style>
-				body{
-					margin:0;
-					overflow:hidden;
-					background:#000;
+	read -r -d "" HTML <<-"EOF"
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Screen</title>
+		<style>
+			body{
+				margin:0;
+				overflow:hidden;
+				background:#000;
+			}
+			video{
+				height:100vh;
+				width:100vw;
+			}
+		</style>
+		<script src="/metadata.js"></script>
+		<script>
+			"use strict";
+
+			var nextId = [];
+			var sourceBuffer = [];
+			var httpRequest = [];
+			var queuedAppend = [];
+			var mediaSource;
+			var videoElement;
+			var delayedAbort = -1;
+
+			// restarts all streams at nextSegment
+			function abortAndRestart(nextSegment) {
+				if(getMinSegment() < 1) { // abortAndRestart will be delayed until all init segments are loaded
+					delayedAbort = nextSegment;
 				}
-				video{
-					height:100vh;
-					width:100vw;
+				else {
+					delayedAbort = -1;
+					for(var i = 0; i < mimeCodec.length; i++) {
+						sourceBuffer[i].abort();
+
+						if(httpRequest[i] != null) {
+							httpRequest[i].abort();
+							httpRequest[i] = null;
+						}
+
+						nextId[i] = nextSegment;
+
+						var sb = sourceBuffer[i];
+						sb.timestampOffset = -segmentDuration * (nextSegment - 1);
+						if(sb.buffered.length > 0) {
+							sb.remove(0, sb.buffered.end(sb.buffered.length - 1));
+						}
+						else {
+							fetchNext(i);
+						}
+					}
 				}
-			</style>
-			<script src="/metadata.js"></script>
-			<script>
-				"use strict";
+			}
 
-				var nextId = [];
-				var sourceBuffer = [];
-				var httpRequest = [];
-				var queuedAppend = [];
-				var mediaSource;
-				var videoElement;
-				var delayedAbort = -1;
-
-				// restarts all streams at nextSegment
-				function abortAndRestart(nextSegment) {
-					if(getMinSegment() < 1) { // abortAndRestart will be delayed until all init segments are loaded
-						delayedAbort = nextSegment;
+			function getArrayBuffer(url, callback) {
+				var xhr = new XMLHttpRequest();
+				xhr.addEventListener("load", function() {
+					if(xhr.status == 404) {
+						var nextSegment = parseInt(xhr.getResponseHeader("Next-Segment"));
+						abortAndRestart(nextSegment);
 					}
 					else {
-						delayedAbort = -1;
-						for(var i = 0; i < mimeCodec.length; i++) {
-							sourceBuffer[i].abort();
+						callback(xhr.response);
+					}
+				}, false);
+				xhr.open("GET", url);
+				xhr.responseType = "arraybuffer";
+				xhr.send();
+				return xhr;
+			}
 
-							if(httpRequest[i] != null) {
-								httpRequest[i].abort();
-								httpRequest[i] = null;
-							}
+			function getMinSegment() {
+				return Math.min.apply(Math, nextId);
+			}
 
-							nextId[i] = nextSegment;
+			function getMaxSegment() {
+				return Math.max.apply(Math, nextId);
+			}
 
-							var sb = sourceBuffer[i];
-							sb.timestampOffset = -segmentDuration * (nextSegment - 1);
-							if(sb.buffered.length > 0) {
-								sb.remove(0, sb.buffered.end(sb.buffered.length - 1));
-							}
-							else {
-								fetchNext(i);
-							}
-						}
+			// add ArrayBuffer buf to sourceBuffer[i]
+			function sourceBufferAppend(i, buf) {
+				var sb = sourceBuffer[i];
+
+				try {
+					sb.appendBuffer(buf);
+				}
+				catch(e) {
+					if(sb.buffered.length > 0) { // e is QuotaExceededError
+						var start = sb.buffered.start(0);
+						var end = sb.buffered.end(sb.buffered.length - 1);
+
+						queuedAppend[i] = buf;
+
+						sb.remove(start, (start + end) / 2); // remove old frames that were not automatically evicted by the browser
+					}
+					else {
+						abortAndRestart(getMaxSegment());
 					}
 				}
+			}
 
-				function getArrayBuffer(url, callback) {
-					var xhr = new XMLHttpRequest();
-					xhr.addEventListener("load", function() {
-						if(xhr.status == 404) {
-							var nextSegment = parseInt(xhr.getResponseHeader("Next-Segment"));
-							abortAndRestart(nextSegment);
-						}
-						else {
-							callback(xhr.response);
-						}
-					}, false);
-					xhr.open("GET", url);
-					xhr.responseType = "arraybuffer";
-					xhr.send();
-					return xhr;
-				}
+			// set currentTime to a valid position and play video
+			function tryToPlayAndAjustTime() {
+				if(videoElement.buffered.length > 0) {
+					var start = videoElement.buffered.start(videoElement.buffered.length - 1);
 
-				function getMinSegment() {
-					return Math.min.apply(Math, nextId);
-				}
-
-				function getMaxSegment() {
-					return Math.max.apply(Math, nextId);
-				}
-
-				// add ArrayBuffer buf to sourceBuffer[i]
-				function sourceBufferAppend(i, buf) {
-					var sb = sourceBuffer[i];
-
-					try {
-						sb.appendBuffer(buf);
-					}
-					catch(e) {
-						if(sb.buffered.length > 0) { // e is QuotaExceededError
-							var start = sb.buffered.start(0);
-							var end = sb.buffered.end(sb.buffered.length - 1);
-
-							queuedAppend[i] = buf;
-
-							sb.remove(start, (start + end) / 2); // remove old frames that were not automatically evicted by the browser
-						}
-						else {
-							abortAndRestart(getMaxSegment());
+					if(videoElement.currentTime <= start) {
+						videoElement.currentTime = start;
+						if(videoElement.paused){
+							videoElement.play();
 						}
 					}
-				}
+					else {
+						var end = videoElement.buffered.end(videoElement.buffered.length - 1);
 
-				// set currentTime to a valid position and play video
-				function tryToPlayAndAjustTime() {
-					if(videoElement.buffered.length > 0) {					
-						var start = videoElement.buffered.start(videoElement.buffered.length - 1);
-
-						if(videoElement.currentTime <= start) {
-							videoElement.currentTime = start;
+						if(videoElement.currentTime > end) {
+							videoElement.currentTime = end;
 							if(videoElement.paused){
 								videoElement.play();
 							}
 						}
-						else {
-							var end = videoElement.buffered.end(videoElement.buffered.length - 1);
-
-							if(videoElement.currentTime > end) {
-								videoElement.currentTime = end;
-								if(videoElement.paused){
-									videoElement.play();
-								}
-							}
-						}
 					}
 				}
+			}
 
-				function addUpdateendListener(i) {
-					sourceBuffer[i].addEventListener("updateend", function() { // this is executed when the SourceBuffer.appendBuffer or SourceBuffer.remove has ended
-						if(delayedAbort != -1) {
-							nextId[i]++;
-							abortAndRestart(delayedAbort);
-						}
-						else {
-							var ab = queuedAppend[i];
-
-							if(ab == null) {
-								nextId[i]++;
-								fetchNext(i);
-								tryToPlayAndAjustTime();
-							}
-							else { // previous append failed in sourceBufferAppend(i, buf) and ab needs to be added again
-								queuedAppend[i] = null;
-								sourceBufferAppend(i, ab);
-							}
-						}
-					}, false);
-				}
-
-				function fetchNext(streamId) {
-					httpRequest[streamId] = getArrayBuffer("/" + streamId + "/" + nextId[streamId], function(buf) {
-						httpRequest[streamId] = null;
-						if(delayedAbort == -1 || nextId[streamId] == 0){ // restrict appends to init segments if abort has been delayed
-							sourceBufferAppend(streamId, buf);
-						}
-					});
-				}
-
-				window.addEventListener("load", function() {
-					if(!("MediaSource" in window)) {
-						alert("MediaSource API not supported.");
+			function addUpdateendListener(i) {
+				sourceBuffer[i].addEventListener("updateend", function() { // this is executed when the SourceBuffer.appendBuffer or SourceBuffer.remove has ended
+					if(delayedAbort != -1) {
+						nextId[i]++;
+						abortAndRestart(delayedAbort);
 					}
 					else {
-						for(var i = 0; i < mimeCodec.length; i++) {
-							if(!MediaSource.isTypeSupported(mimeCodec[i])) {
-								alert("Unsupported media type or codec: " + mimeCodec[i]);
-							}
+						var ab = queuedAppend[i];
 
-							nextId.push(0);
-							sourceBuffer.push(null);
-							httpRequest.push(null);
-							queuedAppend.push(null);
+						if(ab == null) {
+							nextId[i]++;
+							fetchNext(i);
+							tryToPlayAndAjustTime();
 						}
-
-						mediaSource = new MediaSource();
-						mediaSource.addEventListener("sourceopen", function() {
-							for(var i = 0; i < mimeCodec.length; i++) {
-								sourceBuffer[i] = mediaSource.addSourceBuffer(mimeCodec[i]);
-
-								if(!sourceBuffer[i].updating) {
-									fetchNext(i);
-								}
-								
-								addUpdateendListener(i);
-							}
-						}, false);
-
-						videoElement = document.querySelector("video#v");
-						videoElement.src = URL.createObjectURL(mediaSource);
-
-						videoElement.addEventListener("click", function(e) {
-							if(videoElement.paused) {
-								videoElement.play();
-							}
-							else {
-								videoElement.pause();
-							}
-							e.preventDefault();
-						}, false);
+						else { // previous append failed in sourceBufferAppend(i, buf) and ab needs to be added again
+							queuedAppend[i] = null;
+							sourceBufferAppend(i, ab);
+						}
 					}
 				}, false);
-			</script>
-		</head>
-		<body>
-			<video id="v"></video>
-		</body>
-		</html>
-		EOF
+			}
 
-		getLastSegmentId(){
-			if [ -f "0/0" ]
-			then
-				local files=$(ls -xt "0/")
-				echo -n ${files%%[\. ]*}
-			else
-				echo -n 0
-			fi
-		}
+			function fetchNext(streamId) {
+				httpRequest[streamId] = getArrayBuffer("/" + streamId + "/" + nextId[streamId], function(buf) {
+					httpRequest[streamId] = null;
+					if(delayedAbort == -1 || nextId[streamId] == 0){ // restrict appends to init segments if abort has been delayed
+						sourceBufferAppend(streamId, buf);
+					}
+				});
+			}
 
-		printOtherHeaders(){
-			echo -ne "Connection: keep-alive\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nExpires: 0\r\nServer: screencapture\r\n\r\n"
-		}
+			window.addEventListener("load", function() {
+				if(!("MediaSource" in window)) {
+					alert("MediaSource API not supported.");
+				}
+				else {
+					for(var i = 0; i < mimeCodec.length; i++) {
+						if(!MediaSource.isTypeSupported(mimeCodec[i])) {
+							alert("Unsupported media type or codec: " + mimeCodec[i]);
+						}
 
-		printHeaders200(){
-			echo -ne "HTTP/1.1 200 OK\r\nContent-Type: $1\r\nContent-Length: $2\r\n"
-			printOtherHeaders
-		}
+						nextId.push(0);
+						sourceBuffer.push(null);
+						httpRequest.push(null);
+						queuedAppend.push(null);
+					}
 
-		printHeaders404(){
-			local lastSegmentId="$1"
-			if [ -z "$lastSegmentId" ]
-			then
-				lastSegmentId=$(getLastSegmentId)
-			fi
-			echo -ne "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nNext-Segment: $lastSegmentId\r\n"
-			printOtherHeaders
-		}
+					mediaSource = new MediaSource();
+					mediaSource.addEventListener("sourceopen", function() {
+						for(var i = 0; i < mimeCodec.length; i++) {
+							sourceBuffer[i] = mediaSource.addSourceBuffer(mimeCodec[i]);
 
-		printMetaData(){
-			printHeaders200 text/javascript "$(stat --printf="%s" metadata.js)"
-			cat metadata.js
-		}
+							if(!sourceBuffer[i].updating) {
+								fetchNext(i);
+							}
 
-		printHTML(){
-			printHeaders200 text/html "${#HTML}"
-			echo -n "$HTML"
-		}
+							addUpdateendListener(i);
+						}
+					}, false);
 
-		sleepABit(){
-			if type usleep >/dev/null 2>&1
-			then
-				usleep 200000
-			else
-				sleep 0.2
-			fi
-		}
+					videoElement = document.querySelector("video#v");
+					videoElement.src = URL.createObjectURL(mediaSource);
 
-		waitFileExistence(){
-			until [ -f "$1" ]
-			do
-				sleepABit
-			done
-		}
+					videoElement.addEventListener("click", function(e) {
+						if(videoElement.paused) {
+							videoElement.play();
+						}
+						else {
+							videoElement.pause();
+						}
+						e.preventDefault();
+					}, false);
+				}
+			}, false);
+		</script>
+	</head>
+	<body>
+		<video id="v"></video>
+	</body>
+	</html>
+	EOF
 
-		waitFileNotEmpty(){
-			until [ -s "$1" ]
-			do
-				sleepABit
-			done
-		}
+	getLastSegmentId(){
+		if [ -f "0/0" ]
+		then
+			local files=$(ls -xt "0/")
+			echo -n ${files%%[\. ]*}
+		else
+			echo -n 0
+		fi
+	}
 
-		printSegmentResponse(){
-			local segmentId="${1##*/}"
+	printOtherHeaders(){
+		echo -ne "Connection: keep-alive\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nExpires: 0\r\nServer: screencapture\r\n\r\n"
+	}
 
-			if [ "$segmentId" == "0" ]
+	printHeaders200(){
+		echo -ne "HTTP/1.1 200 OK\r\nContent-Type: $1\r\nContent-Length: $2\r\n"
+		printOtherHeaders
+	}
+
+	printHeaders404(){
+		local lastSegmentId="$1"
+		if [ -z "$lastSegmentId" ]
+		then
+			lastSegmentId=$(getLastSegmentId)
+		fi
+		echo -ne "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nNext-Segment: $lastSegmentId\r\n"
+		printOtherHeaders
+	}
+
+	printMetaData(){
+		printHeaders200 text/javascript "$(stat --printf="%s" metadata.js)"
+		cat metadata.js
+	}
+
+	printHTML(){
+		printHeaders200 text/html "${#HTML}"
+		echo -n "$HTML"
+	}
+
+	sleepABit(){
+		if type usleep >/dev/null 2>&1
+		then
+			usleep 200000
+		else
+			sleep 0.2
+		fi
+	}
+
+	waitFileExistence(){
+		until [ -f "$1" ]
+		do
+			sleepABit
+		done
+	}
+
+	waitFileNotEmpty(){
+		until [ -s "$1" ]
+		do
+			sleepABit
+		done
+	}
+
+	printSegmentResponse(){
+		local segmentId="${1##*/}"
+
+		if [ "$segmentId" == "0" ]
+		then
+			waitFileExistence "$1"
+			waitFileNotEmpty "$1"
+		elif [ ! -f "$1" ]
+		then
+			local lastSegmentId=$(getLastSegmentId)
+			if [ "$segmentId" -gt "$lastSegmentId" ]
 			then
 				waitFileExistence "$1"
-				waitFileNotEmpty "$1"
-			elif [ ! -f "$1" ]
-			then
-				local lastSegmentId=$(getLastSegmentId)
-				if [ "$segmentId" -gt "$lastSegmentId" ]
-				then
-					waitFileExistence "$1"
-				else
-					printHeaders404 "$lastSegmentId"
-					return
-				fi
+			else
+				printHeaders404 "$lastSegmentId"
+				return
 			fi
+		fi
 
-			local size=$(stat --printf="%s" "$1" 2>/dev/null)
+		local size=$(stat --printf="%s" "$1" 2>/dev/null)
+
+		if [ "$?" == "0" ]
+		then
+			{
+				exec 3<"$1"
+			} 2>/dev/null
 
 			if [ "$?" == "0" ]
 			then
-				{
-					exec 3<"$1"
-				} 2>/dev/null
-
-				if [ "$?" == "0" ]
-				then
-					printHeaders200 application/octet-stream "$size"
-					cat <&3
-					exec 3<&-
-				else
-					printHeaders404 "$lastSegmentId"
-				fi
+				printHeaders200 application/octet-stream "$size"
+				cat <&3
+				exec 3<&-
 			else
 				printHeaders404 "$lastSegmentId"
 			fi
-		}
+		else
+			printHeaders404 "$lastSegmentId"
+		fi
+	}
 
-		shopt -s extglob
+	shopt -s extglob
 
-		CR=$(echo -ne "\r")
+	CR=$(echo -ne "\r")
 
-		while read -r input
-		do
-			if [[ "$input" = GET[[:space:]]/*([[:ascii:]])[[:space:]]HTTP/1\.[01]?($CR) ]]
-			then
-				input="${input% *}"
-				input="${input#GET /}"
-				case "$input" in
-					+([0-9])/+([0-9]))
-						printSegmentResponse "$input"
-						;;
-					"")
-						printHTML
-						;;
-					metadata\.js)
-						printMetaData
-						;;
-					*)
-						printHeaders404
-						;;
-				esac
-			fi
-		done
+	while read -r input
+	do
+		if [[ "$input" = GET[[:space:]]/*([[:ascii:]])[[:space:]]HTTP/1\.[01]?($CR) ]]
+		then
+			input="${input% *}"
+			input="${input#GET /}"
+			case "$input" in
+				+([0-9])/+([0-9]))
+					printSegmentResponse "$input"
+					;;
+				"")
+					printHTML
+					;;
+				metadata\.js)
+					printMetaData
+					;;
+				*)
+					printHeaders404
+					;;
+			esac
+		fi
+	done
 	EOFF
 
 	chmod +x server.sh
