@@ -252,12 +252,12 @@ startServer(){
 				}
 				catch(e) {
 					if(sb.buffered.length > 0) { // e is QuotaExceededError
+						queuedAppend[i] = buf;
+
 						var start = sb.buffered.start(0);
 						var end = sb.buffered.end(sb.buffered.length - 1);
 
-						queuedAppend[i] = buf;
-
-						sb.remove(start, (start + end) / 2); // remove old frames that were not automatically evicted by the browser
+						sb.remove(start, Math.max(end - 60, (start + end) / 2)); // remove old frames that were not automatically evicted by the browser
 					}
 					else {
 						abortAndRestart(getMaxSegment());
