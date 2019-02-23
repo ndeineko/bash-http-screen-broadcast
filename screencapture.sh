@@ -23,6 +23,9 @@ TARGETBITRATE="4M"
 MAXBITRATE="6M"
 BUFFERSIZE="12M"
 
+FRAMERATE="30"
+SEGMENTDURATION="2"
+
 MAXSEGMENTS="4"
 
 LOGLEVEL="quiet"
@@ -64,6 +67,10 @@ do
 			VIDEOSCALE="$2"
 			args=1
 			;;
+		-f|--framerate)
+			FRAMERATE="$2"
+			args=1
+			;;
 		-b|--targetbitrate)
 			TARGETBITRATE="$2"
 			args=1
@@ -74,6 +81,10 @@ do
 			;;
 		-B|--buffersize)
 			BUFFERSIZE="$2"
+			args=1
+			;;
+		-D|--segmentduration)
+			SEGMENTDURATION="$2"
 			args=1
 			;;
 		-M|--maxsegments)
@@ -97,9 +108,11 @@ do
 			  -a, --audiodevice device         Audio input device
 			  -d, --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
 			  -e, --videoscale scale           Output image scale factor (e.g. 0.75)
+			  -f, --framerate number           Output video frames per second (whole number)
 			  -b, --targetbitrate size         Output video target bitrate (e.g. 3M)
 			  -m, --maxbitrate size            Output video maximum bitrate (e.g. 4M)
 			  -B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
+			  -D, --segmentduration seconds    Duration of each segment file (in whole seconds)
 			  -M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
 			  -v, --verbose                    Show ffmpeg's verbose output
 			  -?, --help                       Print this help
@@ -120,21 +133,21 @@ do
 done
 
 startCapture(){
-	echo -n "\"use strict\";var mimeCodec=[\"video/mp4; codecs=\\\"avc1.42c01f\\\"\",\"audio/mp4; codecs=\\\"mp4a.40.2\\\"\"],segmentDuration=2;" > metadata.js
+	echo -n "\"use strict\";var mimeCodec=[\"video/mp4; codecs=\\\"avc1.42c01f\\\"\",\"audio/mp4; codecs=\\\"mp4a.40.2\\\"\"];" > metadata.js
 
 	mkdir 0 1
 
 	ffmpeg \
 		-loglevel "$LOGLEVEL" \
-		-f x11grab -s:size "$CAPTURESIZE" -thread_queue_size 64 -i "$DISPLAYNAME+$CAPTUREORIGIN" \
+		-f x11grab -framerate "$FRAMERATE" -s:size "$CAPTURESIZE" -thread_queue_size 64 -i "$DISPLAYNAME+$CAPTUREORIGIN" \
 		-f "$SOUNDSERVER" -thread_queue_size 1024 -itsoffset "$AUDIODELAY" -i "$AUDIODEVICE" \
 		-pix_fmt yuv420p \
 		-filter:a "aresample=first_pts=0" \
 		-c:a aac -strict experimental -b:a 128k -ar 48000 \
 		-filter:v "scale=trunc(iw*$VIDEOSCALE/2)*2:trunc(ih*$VIDEOSCALE/2)*2" \
-		-c:v libx264 -profile:v baseline -tune fastdecode -preset ultrafast -b:v "$TARGETBITRATE" -maxrate "$MAXBITRATE" -bufsize "$BUFFERSIZE" -r 30 -g 60 -keyint_min 60 \
+		-c:v libx264 -profile:v baseline -tune fastdecode -preset ultrafast -b:v "$TARGETBITRATE" -maxrate "$MAXBITRATE" -bufsize "$BUFFERSIZE" -r "$FRAMERATE" -g "$(($FRAMERATE*$SEGMENTDURATION))" -keyint_min "$(($FRAMERATE*$SEGMENTDURATION))" \
 		-movflags +empty_moov+frag_keyframe+default_base_moof+cgop \
-		-f dash -min_seg_duration 2000000 -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
+		-f dash -min_seg_duration "$SEGMENTDURATION"000000 -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
 
 	local status="$?"
 	if [ "$status" != "0" -a "$status" != "255" ]
@@ -188,6 +201,8 @@ startServer(){
 			var mediaSource;
 			var videoElement;
 			var delayedAbort = -1;
+			
+			var autoplayMessage = true;
 
 			// restarts all streams at nextSegment
 			function abortAndRestart(nextSegment) {
@@ -207,7 +222,6 @@ startServer(){
 						nextId[i] = nextSegment;
 
 						var sb = sourceBuffer[i];
-						sb.timestampOffset = -segmentDuration * (nextSegment - 1);
 						if(sb.buffered.length > 0) {
 							sb.remove(0, sb.buffered.end(sb.buffered.length - 1));
 						}
@@ -265,6 +279,16 @@ startServer(){
 				}
 			}
 
+			function tryToPlay(){
+				var p = videoElement.play();
+				if(p && autoplayMessage){
+					p.catch(function(){
+						autoplayMessage = false;
+						alert("Autoplay is disabled. Click on the video to start it.");
+					});
+				}
+			}
+
 			// set currentTime to a valid position and play video
 			function tryToPlayAndAjustTime() {
 				if(videoElement.buffered.length > 0) {
@@ -273,7 +297,7 @@ startServer(){
 					if(videoElement.currentTime <= start) {
 						videoElement.currentTime = start;
 						if(videoElement.paused){
-							videoElement.play();
+							tryToPlay();
 						}
 					}
 					else {
@@ -282,7 +306,7 @@ startServer(){
 						if(videoElement.currentTime > end) {
 							videoElement.currentTime = end;
 							if(videoElement.paused){
-								videoElement.play();
+								tryToPlay();
 							}
 						}
 					}

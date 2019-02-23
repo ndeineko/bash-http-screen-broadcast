@@ -19,7 +19,7 @@ Create a small HTTP server to broadcast screen and sound from Linux in bash.
 
 ## Options
 
-If an option is not provided, a default value will be used.
+If an option is not provided, a default value is used.
 ```
 -p, --port port                  Valid source port number for HTTP server
 -n, --displayname name           Display name in the form hostname:displaynumber.screennumber
@@ -29,9 +29,11 @@ If an option is not provided, a default value will be used.
 -a, --audiodevice device         Audio input device
 -d, --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
 -e, --videoscale scale           Output image scale factor (e.g. 0.75)
+-f, --framerate number           Output video frames per second (whole number)
 -b, --targetbitrate size         Output video target bitrate (e.g. 3M)
 -m, --maxbitrate size            Output video maximum bitrate (e.g. 4M)
 -B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
+-D, --segmentduration seconds    Duration of each segment file (in whole seconds)
 -M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
 -v, --verbose                    Show ffmpeg's verbose output
 -?, --help                       Print this help
