@@ -21,7 +21,7 @@ Bash script that creates a small HTTP server to broadcast screen and sound from 
 
 ## Options
 
-Default values are used for parameters that are not specified via a command-line option.
+Default values are used for parameters that are not specified via command-line options.
 ```
 -p, --port port                  Valid source port number for HTTP server
 -n, --displayname name           Display name in the form hostname:displaynumber.screennumber
