@@ -1,4 +1,6 @@
-Create a small HTTP server to broadcast screen and sound from Linux in bash.
+# screencapture.sh
+
+Bash script that creates a small HTTP server to broadcast screen and sound from Linux.
 
 ## Prerequisites
 
@@ -13,13 +15,13 @@ Create a small HTTP server to broadcast screen and sound from Linux in bash.
 * Start `screencapture.sh` with or without options
   * Example : `./screencapture.sh -v --port 1234 --videoscale 0.75`
 * (optional) Open `pavucontrol`, go to "Recording" tab, find ffmpeg and set audio capture to "Monitor of ..."
-* Find computer IP.
-* (client) Open `http://IP:PORT/` in a browser
+* Find computer IP
+* (client) Open `http://IP:PORT/` in a web browser
 * To stop `screencapture.sh`, press `CTRL+C` in the terminal window or send a SIGINT to the process
 
 ## Options
 
-If an option is not provided, a default value is used.
+Default values are used for parameters that are not specified via a command-line option.
 ```
 -p, --port port                  Valid source port number for HTTP server
 -n, --displayname name           Display name in the form hostname:displaynumber.screennumber
