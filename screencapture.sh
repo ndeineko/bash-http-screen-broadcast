@@ -201,7 +201,7 @@ startServer(){
 			var mediaSource;
 			var videoElement;
 			var delayedAbort = -1;
-			
+
 			var autoplayMessage = true;
 
 			// restarts all streams at nextSegment
@@ -398,7 +398,7 @@ startServer(){
 	getLastSegmentId(){
 		if [ -f "0/0" ]
 		then
-			local files=$(ls -xt "0/")
+			local files=$(ls -xt --ignore "*[^0-9]*" "0/")
 			echo -n ${files%%[\. ]*}
 		else
 			echo -n 0
@@ -463,7 +463,6 @@ startServer(){
 		if [ "$segmentId" == "0" ]
 		then
 			waitFileExistence "$1"
-			waitFileNotEmpty "$1"
 		elif [ ! -f "$1" ]
 		then
 			local lastSegmentId=$(getLastSegmentId)
@@ -475,6 +474,8 @@ startServer(){
 				return
 			fi
 		fi
+
+		waitFileNotEmpty "$1"
 
 		local size=$(stat --printf="%s" "$1" 2>/dev/null)
 
