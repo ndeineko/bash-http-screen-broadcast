@@ -28,6 +28,8 @@ SEGMENTDURATION="2"
 
 MAXSEGMENTS="4"
 
+TEMPDIRPARENT=""
+
 LOGLEVEL="quiet"
 
 # Parse command line arguments
@@ -91,6 +93,10 @@ do
 			MAXSEGMENTS="$2"
 			args=1
 			;;
+		-t|--tempdir)
+			TEMPDIRPARENT="$2"
+			args=1
+			;;
 		-v|--verbose)
 			LOGLEVEL="verbose"
 			args=0
@@ -114,6 +120,7 @@ do
 			  -B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
 			  -D, --segmentduration seconds    Duration of each segment file (in whole seconds)
 			  -M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
+			  -t, --tempdir directory          Custom directory for temporary files
 			  -v, --verbose                    Show ffmpeg's verbose output
 			  -?, --help                       Print this help
 			EOF
@@ -571,6 +578,7 @@ exitTrap(){
 	then
 		local code=$(head --lines=1 exitcode)
 	fi
+	cd "$OLDDIR"
 	rm --recursive --force "$TEMPDIR"
 	if [ -n "$code" ]
 	then
@@ -578,7 +586,13 @@ exitTrap(){
 	fi
 }
 
-TEMPDIR=$(mktemp --directory --suffix=ffmpeg-screen-capture)
+TEMPDIR=$(mktemp --directory --suffix=ffmpeg-screen-capture --tmpdir="$TEMPDIRPARENT")
+if [ "$?" != "0" ];
+then
+	exit "$?"
+fi
+
+OLDDIR=$(pwd)
 cd "$TEMPDIR"
 
 trap "exitTrap" INT QUIT TERM EXIT

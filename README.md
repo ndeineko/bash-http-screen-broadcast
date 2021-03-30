@@ -37,6 +37,7 @@ Default values are used for parameters that are not specified via command-line o
 -B, --buffersize size            Video bitrate controler buffer size (e.g. 8M)
 -D, --segmentduration seconds    Duration of each segment file (in whole seconds)
 -M, --maxsegments number         Maximum amount of old files kept for each stream (audio and video)
+-t, --tempdir directory          Custom directory for temporary files
 -v, --verbose                    Show ffmpeg's verbose output
 -?, --help                       Print this help
 ```
