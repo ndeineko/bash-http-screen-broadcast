@@ -290,8 +290,10 @@ startServer(){
 				var p = videoElement.play();
 				if(p && autoplayMessage){
 					p.catch(function(){
-						autoplayMessage = false;
-						alert("Autoplay is disabled. Click on the video to start it.");
+						if(autoplayMessage){
+							autoplayMessage = false;
+							alert("Autoplay is disabled. Click on the video to start it.");
+						}
 					});
 				}
 			}
@@ -587,7 +589,7 @@ exitTrap(){
 }
 
 TEMPDIR=$(mktemp --directory --suffix=ffmpeg-screen-capture --tmpdir="$TEMPDIRPARENT")
-if [ "$?" != "0" ];
+if [ "$?" != "0" ]
 then
 	exit "$?"
 fi
