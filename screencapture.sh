@@ -210,6 +210,7 @@ startServer(){
 			var delayedAbort = -1;
 
 			var autoplayMessage = true;
+			var mutedMessage = true;
 
 			// restarts all streams at nextSegment
 			function abortAndRestart(nextSegment) {
@@ -295,6 +296,11 @@ startServer(){
 							alert("Autoplay is disabled. Click on the video to start it.");
 						}
 					});
+				}
+
+				if(videoElement.muted && mutedMessage) {
+					mutedMessage = false;
+					alert("Sound is muted. Click on the video to unmute it.");
 				}
 			}
 
@@ -386,6 +392,12 @@ startServer(){
 					videoElement.src = URL.createObjectURL(mediaSource);
 
 					videoElement.addEventListener("click", function(e) {
+						if(videoElement.muted) {
+							videoElement.muted = false;
+							videoElement.play();
+							return;
+						}
+
 						if(videoElement.paused) {
 							videoElement.play();
 						}
@@ -399,7 +411,7 @@ startServer(){
 		</script>
 	</head>
 	<body>
-		<video id="v"></video>
+		<video id="v" muted></video>
 	</body>
 	</html>
 	EOF
