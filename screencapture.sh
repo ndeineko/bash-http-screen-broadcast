@@ -242,6 +242,7 @@ startServer(){
 
 			function getArrayBuffer(url, callback) {
 				var xhr = new XMLHttpRequest();
+
 				xhr.addEventListener("load", function() {
 					if(xhr.status == 404) {
 						var nextSegment = parseInt(xhr.getResponseHeader("Next-Segment"));
@@ -251,10 +252,23 @@ startServer(){
 						callback(xhr.response);
 					}
 				}, false);
+
+				xhr.addEventListener("error", function() {
+					setTimeout(function() {
+						abortFunc.abort = getArrayBuffer(url, callback).abort;
+					}, 1000);
+				}, false);
+
 				xhr.open("GET", url);
 				xhr.responseType = "arraybuffer";
 				xhr.send();
-				return xhr;
+
+				var abortFunc = {
+					abort : function() {
+						xhr.abort();
+					}
+				}
+				return abortFunc;
 			}
 
 			function getMinSegment() {
@@ -485,7 +499,7 @@ startServer(){
 		elif [ ! -f "$1" ]
 		then
 			local lastSegmentId=$(getLastSegmentId)
-			if [ "$segmentId" -gt "$lastSegmentId" ]
+			if [ "$segmentId" -gt "$lastSegmentId" ] && [ "$segmentId" -lt "$((3+$lastSegmentId))" ]
 			then
 				waitFileExistence "$1"
 			else
