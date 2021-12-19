@@ -395,10 +395,8 @@ startServer(){
 						if(videoElement.muted) {
 							videoElement.muted = false;
 							videoElement.play();
-							return;
 						}
-
-						if(videoElement.paused) {
+						else if(videoElement.paused) {
 							videoElement.play();
 						}
 						else {
