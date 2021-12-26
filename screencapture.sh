@@ -207,46 +207,36 @@ startServer(){
 			var queuedAppend = [];
 			var mediaSource;
 			var videoElement;
-			var delayedAbort = -1;
 
 			var autoplayMessage = true;
 			var mutedMessage = true;
 
-			// restarts all streams at nextSegment
-			function abortAndRestart(nextSegment) {
-				if(getMinSegment() < 1) { // abortAndRestart will be delayed until all init segments are loaded
-					delayedAbort = nextSegment;
+			// restarts stream i at nextId[i]
+			function abortAndRestart(i) {
+				if(httpRequest[i] != null) {
+					httpRequest[i].abort();
+					httpRequest[i] = null;
+				}
+
+				queuedAppend[i] = null;
+
+				var sb = sourceBuffer[i];
+				sb.abort();
+
+				if(sb.buffered.length > 0) {
+					sb.remove(0, sb.buffered.end(sb.buffered.length - 1));
 				}
 				else {
-					delayedAbort = -1;
-					for(var i = 0; i < mimeCodec.length; i++) {
-						sourceBuffer[i].abort();
-
-						if(httpRequest[i] != null) {
-							httpRequest[i].abort();
-							httpRequest[i] = null;
-						}
-
-						nextId[i] = nextSegment;
-
-						var sb = sourceBuffer[i];
-						if(sb.buffered.length > 0) {
-							sb.remove(0, sb.buffered.end(sb.buffered.length - 1));
-						}
-						else {
-							fetchNext(i);
-						}
-					}
+					fetchNext(i);
 				}
 			}
 
-			function getArrayBuffer(url, callback) {
+			function getArrayBuffer(url, callback, e404Callback) {
 				var xhr = new XMLHttpRequest();
 
 				xhr.addEventListener("load", function() {
 					if(xhr.status == 404) {
-						var nextSegment = parseInt(xhr.getResponseHeader("Next-Segment"));
-						abortAndRestart(nextSegment);
+						e404Callback(parseInt(xhr.getResponseHeader("Next-Segment")));
 					}
 					else {
 						callback(xhr.response);
@@ -255,7 +245,10 @@ startServer(){
 
 				xhr.addEventListener("error", function() {
 					setTimeout(function() {
-						abortFunc.abort = getArrayBuffer(url, callback).abort;
+						var id = httpRequest.indexOf(xhr);
+						if(id != -1) { // request was not aborted
+							httpRequest[id] = getArrayBuffer(url, callback, e404Callback);
+						}
 					}, 1000);
 				}, false);
 
@@ -263,20 +256,7 @@ startServer(){
 				xhr.responseType = "arraybuffer";
 				xhr.send();
 
-				var abortFunc = {
-					abort : function() {
-						xhr.abort();
-					}
-				}
-				return abortFunc;
-			}
-
-			function getMinSegment() {
-				return Math.min.apply(Math, nextId);
-			}
-
-			function getMaxSegment() {
-				return Math.max.apply(Math, nextId);
+				return xhr;
 			}
 
 			// add ArrayBuffer buf to sourceBuffer[i]
@@ -296,16 +276,16 @@ startServer(){
 						sb.remove(start, Math.max(end - 60, (start + end) / 2)); // remove old frames that were not automatically evicted by the browser
 					}
 					else {
-						abortAndRestart(getMaxSegment());
+						abortAndRestart(i);
 					}
 				}
 			}
 
-			function tryToPlay(){
+			function tryToPlay() {
 				var p = videoElement.play();
-				if(p && autoplayMessage){
-					p.catch(function(){
-						if(autoplayMessage){
+				if(p && autoplayMessage) {
+					p.catch(function() {
+						if(autoplayMessage) {
 							autoplayMessage = false;
 							alert("Autoplay is disabled. Click on the video to start it.");
 						}
@@ -325,7 +305,7 @@ startServer(){
 
 					if(videoElement.currentTime <= start) {
 						videoElement.currentTime = start;
-						if(videoElement.paused){
+						if(videoElement.paused) {
 							tryToPlay();
 						}
 					}
@@ -334,7 +314,7 @@ startServer(){
 
 						if(videoElement.currentTime > end) {
 							videoElement.currentTime = end;
-							if(videoElement.paused){
+							if(videoElement.paused) {
 								tryToPlay();
 							}
 						}
@@ -344,32 +324,29 @@ startServer(){
 
 			function addUpdateendListener(i) {
 				sourceBuffer[i].addEventListener("updateend", function() { // this is executed when the SourceBuffer.appendBuffer or SourceBuffer.remove has ended
-					if(delayedAbort != -1) {
-						nextId[i]++;
-						abortAndRestart(delayedAbort);
-					}
-					else {
-						var ab = queuedAppend[i];
+					var ab = queuedAppend[i];
 
-						if(ab == null) {
-							nextId[i]++;
-							fetchNext(i);
-							tryToPlayAndAjustTime();
-						}
-						else { // previous append failed in sourceBufferAppend(i, buf) and ab needs to be added again
-							queuedAppend[i] = null;
-							sourceBufferAppend(i, ab);
-						}
+					if(ab == null) {
+						fetchNext(i);
+						tryToPlayAndAjustTime();
+					}
+					else { // previous append failed in sourceBufferAppend(i, buf) and ab needs to be added again
+						queuedAppend[i] = null;
+						sourceBufferAppend(i, ab);
 					}
 				}, false);
 			}
 
 			function fetchNext(streamId) {
-				httpRequest[streamId] = getArrayBuffer("/" + streamId + "/" + nextId[streamId], function(buf) {
+				var segmentId = nextId[streamId];
+				httpRequest[streamId] = getArrayBuffer("/" + streamId + "/" + segmentId, function(buf) {
 					httpRequest[streamId] = null;
-					if(delayedAbort == -1 || nextId[streamId] == 0){ // restrict appends to init segments if abort has been delayed
-						sourceBufferAppend(streamId, buf);
-					}
+					nextId[streamId]++;
+					sourceBufferAppend(streamId, buf);
+				}, function(nextSegment) {
+					httpRequest[streamId] = null;
+					nextId[streamId] = nextSegment;
+					abortAndRestart(streamId);
 				});
 			}
 
@@ -408,13 +385,9 @@ startServer(){
 					videoElement.addEventListener("click", function(e) {
 						if(videoElement.muted) {
 							videoElement.muted = false;
-							videoElement.play();
 						}
-						else if(videoElement.paused) {
+						if(videoElement.paused) {
 							videoElement.play();
-						}
-						else {
-							videoElement.pause();
 						}
 						e.preventDefault();
 					}, false);
@@ -429,9 +402,10 @@ startServer(){
 	EOF
 
 	getLastSegmentId(){
-		if [ -f "0/0" ]
+		local streamId="$1"
+		if [ -f "$streamId/0" ]
 		then
-			local files=$(ls -xt --ignore "*[^0-9]*" "0/")
+			local files=$(ls -xt --ignore "*[^0-9]*" "$streamId/" 2>/dev/null)
 			echo -n ${files%%[\. ]*}
 		else
 			echo -n 0
@@ -451,7 +425,7 @@ startServer(){
 		local lastSegmentId="$1"
 		if [ -z "$lastSegmentId" ]
 		then
-			lastSegmentId=$(getLastSegmentId)
+			lastSegmentId=0
 		fi
 		echo -ne "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nNext-Segment: $lastSegmentId\r\n"
 		printOtherHeaders
@@ -491,6 +465,14 @@ startServer(){
 	}
 
 	printSegmentResponse(){
+		local streamId="${1%%/*}"
+
+		if [ ! -d "$streamId" ]
+		then
+			printHeaders404
+			return
+		fi
+
 		local segmentId="${1##*/}"
 
 		if [ "$segmentId" == "0" ]
@@ -498,8 +480,8 @@ startServer(){
 			waitFileExistence "$1"
 		elif [ ! -f "$1" ]
 		then
-			local lastSegmentId=$(getLastSegmentId)
-			if [ "$segmentId" -gt "$lastSegmentId" ] && [ "$segmentId" -lt "$((3+$lastSegmentId))" ]
+			local lastSegmentId=$(getLastSegmentId "$streamId")
+			if [ "$segmentId" -ge "$lastSegmentId" ] && [ "$segmentId" -lt "$((3+$lastSegmentId))" ]
 			then
 				waitFileExistence "$1"
 			else
