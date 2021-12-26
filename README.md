@@ -4,20 +4,19 @@ Bash script that creates a small HTTP server to broadcast screen and sound from 
 
 ## Prerequisites
 
-* A recent `bash` version
+* Recent `bash` version
 * [`ffmpeg`](https://ffmpeg.org/about.html) with x11grab+alsa input devices and libx264+aac codecs
 * [`ncat`](https://nmap.org/ncat/) (or [`socat`](http://www.dest-unreach.org/socat/) or [`tcpserver`](http://cr.yp.to/ucspi-tcp/tcpserver.html) or [`socket`](http://manpages.ubuntu.com/manpages/trusty/man1/socket.1.html))
-* (optional) `pavucontrol`
-* (client) A web browser which support [Media Source Extensions](https://w3c.github.io/media-source/) with h264 and aac codecs
+* (optionally) `pavucontrol`
+* On the client side: web browser which supports [Media Source Extensions](https://w3c.github.io/media-source/) with h264 and aac codecs
 
 ## Usage
 
 * Start `screencapture.sh` with or without options
   * Example : `./screencapture.sh -v --port 1234 --videoscale 0.75`
-* (optional) Open `pavucontrol`, go to "Recording" tab, find ffmpeg and set audio capture to "Monitor of ..."
-* Find computer IP
-* (client) Open `http://IP:PORT/` in a web browser
-* To stop `screencapture.sh`, press `CTRL+C` in the terminal window or send a SIGINT to the process
+* (optionally) Open `pavucontrol`, go to `Recording` tab, find the line with ffmpeg and set audio capture to `Monitor of [...]`
+* On the client side, open `http://IP:PORT/` in a web browser, where `IP` is the server IP and `PORT` is the default server port (8080) or the one specified on the command-line
+* To stop `screencapture.sh`, press `CTRL+C` in the terminal window or send a `SIGINT` to the process
 
 ## Options
 
