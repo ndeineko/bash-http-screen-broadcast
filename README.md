@@ -15,7 +15,7 @@ Bash script that creates a small HTTP server to broadcast screen and sound from 
 * Start `screencapture.sh` with or without options
   * Example : `./screencapture.sh -v --port 1234 --videoscale 0.75`
 * (optionally) Open `pavucontrol`, go to `Recording` tab, find the line with ffmpeg and set audio capture to `Monitor of [...]`
-* On the client side, open `http://IP:PORT/` in a web browser, where `IP` is the server IP and `PORT` is the default server port (8080) or the one specified on the command-line
+* On the client side, open `http://IP:PORT/` in a web browser, where `IP` is the server IP and `PORT` is the default server port (8080) or the port specified using the appropriate command-line option
 * To stop `screencapture.sh`, press `CTRL+C` in the terminal window or send a `SIGINT` to the process
 
 ## Options
