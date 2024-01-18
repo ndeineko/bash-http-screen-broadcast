@@ -161,7 +161,7 @@ startCapture(){
 		-filter:v "scale=trunc(iw*$VIDEOSCALE/2)*2:trunc(ih*$VIDEOSCALE/2)*2" \
 		-c:v libx264 -profile:v baseline -tune fastdecode -preset ultrafast -b:v "$TARGETBITRATE" -maxrate "$MAXBITRATE" -bufsize "$BUFFERSIZE" -r "$FRAMERATE" -g "$(($FRAMERATE*$SEGMENTDURATION))" -keyint_min "$(($FRAMERATE*$SEGMENTDURATION))" \
 		-movflags +empty_moov+frag_keyframe+default_base_moof+cgop \
-		-f dash -min_seg_duration "$SEGMENTDURATION"000000 -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
+		-f dash -seg_duration "$SEGMENTDURATION" -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
 
 	local status="$?"
 	if [ "$status" != "0" -a "$status" != "255" ]
