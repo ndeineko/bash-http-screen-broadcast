@@ -11,7 +11,8 @@ PORT="8080"
 
 DISPLAYNAME=":0.0"
 CAPTUREORIGIN="0,0"
-CAPTURESIZE=$(xwininfo -display "$DISPLAYNAME" -root|grep --extended-regexp --only-matching "\-geometry\s[0-9]+x[0-9]+"|cut -d " " -f 2)
+CAPTURESIZE=""
+UNDEFINEDCAPTURESIZE="true"
 
 SOUNDSERVER="alsa"
 AUDIODEVICE="default"
@@ -51,6 +52,7 @@ do
 			;;
 		-c|--capturesize)
 			CAPTURESIZE="$2"
+			UNDEFINEDCAPTURESIZE="false"
 			args=1
 			;;
 		-s|--soundserver)
@@ -138,6 +140,11 @@ do
 		exit 1
 	fi
 done
+
+if [ "$UNDEFINEDCAPTURESIZE" == "true" ]
+then
+	CAPTURESIZE=$(xwininfo -display "$DISPLAYNAME" -root|grep --extended-regexp --only-matching "\-geometry\s[0-9]+x[0-9]+"|cut -d " " -f 2)
+fi
 
 startCapture(){
 	echo -n "\"use strict\";var mimeCodec=[\"video/mp4; codecs=\\\"avc1.42c01f\\\"\",\"audio/mp4; codecs=\\\"mp4a.40.2\\\"\"];" > metadata.js
