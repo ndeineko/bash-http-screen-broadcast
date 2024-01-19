@@ -166,14 +166,19 @@ startCapture(){
 	local status="$?"
 	if [ "$status" != "0" -a "$status" != "255" ]
 	then
-		if [ -d "$TEMPDIR" ]
+		if [ -d 0 -a -d 1 ]
 		then
 			echo -n "ffmpeg exited with nonzero status $status." >&2
 			if [ "$LOGLEVEL" == "quiet" ]
 			then
-				echo " Use -v to show more information." >&2
+				echo " Use '-v' to show more information." >&2
 			else
 				echo >&2
+			fi
+			
+			if ! ffmpegHasWriteAccess
+			then
+				echo "It seems ffmpeg cannot write to '$(pwd)'. If ffmpeg is installed using 'snap install', then you need to specify a temporary directory (using the '--tempdir' option) that ffmpeg can access (anything inside '$HOME' should work; additionally, you can use 'mount --bind /tmp $HOME/tmp' as shown in https://askubuntu.com/a/1264341)." >&2
 			fi
 		fi
 
@@ -568,6 +573,22 @@ startServer(){
 	fi
 
 	killMainProcess "$?"
+}
+
+ffmpegHasWriteAccess(){
+	local testDirName="0"
+	if [ -d "$testDirName" ]
+	then
+		local testFilePath="$testDirName/test.aac"
+		ffmpeg -loglevel quiet -f lavfi -i anullsrc -t 1 -c:a aac -strict experimental "$testFilePath"
+		if [ -f "$testFilePath" ]
+		then
+			rm "$testFilePath"
+		else
+			return 1
+		fi
+	fi
+	return 0
 }
 
 killMainProcess(){
