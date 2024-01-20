@@ -156,6 +156,17 @@ startCapture(){
 
 	mkdir 0 1
 
+	local durationOptionName durationOptionValue
+	ffmpeg -loglevel quiet --help "muxer=dash"|grep --extended-regexp "^\s*\-min_seg_duration" >/dev/null
+	if [ "$?" == "0" ]
+	then
+		durationOptionName="-min_seg_duration"
+		durationOptionValue="$SEGMENTDURATION"000000
+	else
+		durationOptionName="-seg_duration"
+		durationOptionValue="$SEGMENTDURATION"
+	fi
+
 	ffmpeg \
 		-loglevel "$LOGLEVEL" \
 		-f x11grab -framerate "$FRAMERATE" -s:size "$CAPTURESIZE" -thread_queue_size 64 -i "$DISPLAYNAME+$CAPTUREORIGIN" \
@@ -166,7 +177,7 @@ startCapture(){
 		-filter:v "scale=trunc(iw*$VIDEOSCALE/2)*2:trunc(ih*$VIDEOSCALE/2)*2" \
 		-c:v libx264 -profile:v baseline -tune fastdecode -preset ultrafast -b:v "$TARGETBITRATE" -maxrate "$MAXBITRATE" -bufsize "$BUFFERSIZE" -r "$FRAMERATE" -g "$(($FRAMERATE*$SEGMENTDURATION))" -keyint_min "$(($FRAMERATE*$SEGMENTDURATION))" \
 		-movflags +empty_moov+frag_keyframe+default_base_moof+cgop \
-		-f dash -seg_duration "$SEGMENTDURATION" -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
+		-f dash "$durationOptionName" "$durationOptionValue" -use_template 0 -window_size "$MAXSEGMENTS" -extra_window_size 0 -remove_at_exit 1 -init_seg_name "\$RepresentationID\$/0" -media_seg_name "\$RepresentationID\$/\$Number\$" manifest.mpd
 
 	local status="$?"
 	if [ "$status" != "0" -a "$status" != "255" ]
@@ -180,7 +191,7 @@ startCapture(){
 			else
 				echo >&2
 			fi
-			
+
 			if ! ffmpegHasWriteAccess
 			then
 				echo "It seems ffmpeg cannot write to '$(pwd)'. If ffmpeg is installed using 'snap install', then you need to specify a temporary directory (using the '--tempdir' option) that ffmpeg can access (anything inside '$HOME' should work; additionally, you can use 'mount --bind /tmp $HOME/tmp' as shown in https://askubuntu.com/a/1264341)." >&2
