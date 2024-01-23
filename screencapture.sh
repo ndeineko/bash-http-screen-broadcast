@@ -157,7 +157,7 @@ startCapture(){
 	mkdir 0 1
 
 	local durationOptionName durationOptionValue
-	ffmpeg -loglevel quiet --help "muxer=dash"|grep --extended-regexp "^\s*\-min_seg_duration" >/dev/null
+	ffmpeg -loglevel quiet --help "muxer=dash"|grep --extended-regexp "^\s*\-min_seg_duration" >/dev/null 2>&1
 	if [ "$?" == "0" ]
 	then
 		durationOptionName="-min_seg_duration"
