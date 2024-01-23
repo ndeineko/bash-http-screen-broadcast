@@ -596,11 +596,12 @@ ffmpegHasWriteAccess(){
 	if [ -d "$testDirName" ]
 	then
 		local testFilePath="$testDirName/test.aac"
-		ffmpeg -loglevel quiet -f lavfi -i anullsrc -t 1 -c:a aac -strict experimental "$testFilePath"
+		ffmpeg -loglevel quiet -f lavfi -i anullsrc -t 1 -c:a aac -strict experimental "$testFilePath" >/dev/null 2>&1
 		if [ -f "$testFilePath" ]
 		then
 			rm "$testFilePath"
-		else
+		elif [ -d "$testDirName" ]
+		then
 			return 1
 		fi
 	fi
