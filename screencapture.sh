@@ -20,7 +20,8 @@ CAPTURESIZE=""
 UNDEFINEDCAPTURESIZE="true"
 
 SOUNDSERVER="alsa"
-AUDIODEVICE="default"
+AUDIODEVICE=""
+UNDEFINEDAUDIODEVICE="true"
 AUDIODELAY="0.16"
 
 VIDEOSCALE="1"
@@ -66,6 +67,7 @@ do
 			;;
 		-a|--audiodevice)
 			AUDIODEVICE="$2"
+			UNDEFINEDAUDIODEVICE="false"
 			args=1
 			;;
 		-d|--audiodelay)
@@ -149,6 +151,22 @@ done
 if [ "$UNDEFINEDCAPTURESIZE" == "true" ]
 then
 	CAPTURESIZE=$(xwininfo -display "$DISPLAYNAME" -root|grep --extended-regexp --only-matching "\-geometry\s[0-9]+x[0-9]+"|cut -d " " -f 2)
+fi
+
+if [ "$UNDEFINEDAUDIODEVICE" == "true" ]
+then
+	if [ "$SOUNDSERVER" == "openal" ]
+	then
+		AUDIODEVICE=""
+	elif [ "$SOUNDSERVER" == "oss" ]
+	then
+		AUDIODEVICE="/dev/dsp"
+	elif [ "$SOUNDSERVER" == "sndio" ]
+	then
+		AUDIODEVICE="/dev/audio0"
+	else # alsa, pulse, ...
+		AUDIODEVICE="default"
+	fi
 fi
 
 startCapture(){
