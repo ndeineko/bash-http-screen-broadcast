@@ -119,7 +119,7 @@ do
 			  -n, --displayname name           Display name in the form hostname:displaynumber.screennumber
 			  -o, --captureorigin position     Capture origin in the form X,Y (e.g. 208,254)
 			  -c, --capturesize dimensions     Capture size in the form WxH (e.g. 640x480)
-			  -s, --soundserver name           Sound server to use ("alsa", "pulse", "oss", ...)
+			  -s, --soundserver name           Sound server to use ("alsa", "pulse", "openal", "oss", "sndio", ...)
 			  -a, --audiodevice device         Audio input device
 			  -d, --audiodelay seconds         Sound delay in seconds (e.g. 0.22)
 			  -e, --videoscale scale           Output image scale factor (e.g. 0.75)
