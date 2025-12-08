@@ -19,7 +19,12 @@ CAPTUREORIGIN="0,0"
 CAPTURESIZE=""
 UNDEFINEDCAPTURESIZE="true"
 
-SOUNDSERVER="alsa"
+if [[ $(which ffmpeg 2>/dev/null) = *"snap"* ]]
+then
+	SOUNDSERVER="pulse"
+else
+	SOUNDSERVER="alsa"
+fi
 AUDIODEVICE=""
 UNDEFINEDAUDIODEVICE="true"
 AUDIODELAY="0.16"
