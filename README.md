@@ -6,7 +6,7 @@ Bash script that creates a small HTTP server to broadcast screen and sound from 
 
 * Recent `bash` version
 * [`ffmpeg`](https://ffmpeg.org/about.html) with x11grab+alsa input devices and libx264+aac codecs
-* [`ncat`](https://nmap.org/ncat/) (or [`socat`](http://www.dest-unreach.org/socat/) or [`tcpserver`](http://cr.yp.to/ucspi-tcp/tcpserver.html) or [`socket`](http://manpages.ubuntu.com/manpages/trusty/man1/socket.1.html))
+* [`ncat`](https://nmap.org/ncat/) (or [`socat`](http://www.dest-unreach.org/socat/) or [`tcpserver`](https://cr.yp.to/ucspi-tcp/tcpserver.html) or [`socket`](https://manpages.ubuntu.com/manpages/noble/man1/socket.1.html))
 * (optionally) `pavucontrol`
 * On the client side: web browser which supports [Media Source Extensions](https://w3c.github.io/media-source/) with h264 and aac codecs
 
