@@ -192,7 +192,7 @@ startCapture(){
 
 	ffmpeg \
 		-loglevel "$LOGLEVEL" \
-		-f x11grab -framerate "$FRAMERATE" -s:size "$CAPTURESIZE" -thread_queue_size 64 -i "$DISPLAYNAME+$CAPTUREORIGIN" \
+		-f x11grab -framerate "$FRAMERATE" -s "$CAPTURESIZE" -thread_queue_size 64 -i "$DISPLAYNAME+$CAPTUREORIGIN" \
 		-f "$SOUNDSERVER" -thread_queue_size 1024 -itsoffset "$AUDIODELAY" -i "$AUDIODEVICE" \
 		-pix_fmt yuv420p \
 		-filter:a "aresample=first_pts=0" \
